@@ -10,7 +10,7 @@ launch
 à la suite de la dernière commande valider deux fois les choix par défaut en tapant ENTER.
 
 Pour modifier les paramètres physique, rendez-vous dans le ficher `run_card.dat` (il se trouve dans votre dossier `ppZmumu` crée lors de l'étape précédente). Afin de réaliser les mêmes histogrammes, il vous faut lancer deux runs :
-- **Run 01 :** $N_events= 10000$ et $E_{beam1} = E_{beam2} = 6500} GeV (il s'agit du run de référence avec les paramètres par défaut de MadGraph);
+- **Run 01 :** $N_{events}= 10000$ et $E_{beam1} = E_{beam2} = 6500$ GeV (il s'agit du run de référence avec les paramètres par défaut de MadGraph);
 - **Run 02 :** Changez $E_{beam2} =  1000$ GeV.
 
 > Note : D'autres Run ont également été réalisés pour ce projet, le Run 02 est donné ici à titre d'exemple.
