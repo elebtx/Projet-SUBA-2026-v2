@@ -69,17 +69,5 @@ L'exécution de cette commande affiche dans le terminal :
 Elle génère également les figures suivantes :
 - l'efficacité différentielle en fonction de la pseudo-rapidité \eta;
 - le fit de la masse invariante $m_{\mu\mu}$ par une fonction de Breit-Wigner relativiste;
-- l'efficacite en fonction de l'impulsion transverse.
-
-Elle crée également le fichier `eta_muon.root`. 
-
-> **N.B. :** Pour éviter d'écraser ce fichier lors de l'analyse du Run 02, il est préférable de le renommer :
-```cpp
-gSystem->Rename("eta_muon.root","eta_muon_nominal.root");
-```
 
 Pour réaliser cette même analyse avec les données du Run 02, il suffit de reproduire ces mêmes étapes avec le fichier `asymetrique.root`
-
-
----
-
