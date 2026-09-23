@@ -59,7 +59,6 @@ public:
    TH1D *h_massZ = nullptr;
    TH1D *h_ptLead_total = nullptr;
    TH1D *h_ptLead_pass = nullptr;
-   TH1D *h_ptLead_pass30 = nullptr;
    TH1D *h_etaMuon = nullptr;
    TH1D *h_eta_tot= nullptr;
    TH1D *h_eta_pass = nullptr;
