@@ -62,6 +62,8 @@ public:
    TH1D *h_etaMuon = nullptr;
    TH1D *h_eta_tot= nullptr;
    TH1D *h_eta_pass = nullptr;
+   TH1D *h_rapidityZ = nullptr;
+   TH1D *h_pzZ = nullptr;
 
 
    Analyze(TTree * = 0) {}
