@@ -36,6 +36,10 @@ void Analyze::SlaveBegin(TTree *) {
    h_eta_tot = new TH1D("h_eta_tot","Muons preselectionnes;#eta;Muons",30, -3.0, 3.0);
    h_eta_pass = new TH1D("h_eta_pass","Muons passant la selection;#eta;Muons",30, -3.0, 3.0);
 
+   // --- NOUVEAUX HISTOGRAMMES DE SÉLECTION DU BOSON Z ---
+   h_rapidityZ = new TH1D("h_rapidityZ", "Rapidite du Boson Z;y_{Z};Evenements", 50, -5.0, 5.0);
+   h_pzZ = new TH1D("h_pzZ", "Impulsion longitudinale du Boson Z;p_{z}^{Z} [GeV];Evenements", 100, -3000.0, 3000.0);
+
    // Sauvegarde globale des histogrammes
    fOutput->Add(h_massZ);
    fOutput->Add(h_ptLead_total);
@@ -43,6 +47,8 @@ void Analyze::SlaveBegin(TTree *) {
    fOutput->Add(h_etaMuon);
    fOutput->Add(h_eta_tot);
    fOutput->Add(h_eta_pass);
+   fOutput->Add(h_rapidityZ);
+   fOutput->Add(h_pzZ);   
 
    // Permet le calcul des incertitudes
    h_massZ->Sumw2();
@@ -81,7 +87,7 @@ bool Analyze::Process(Long64_t entry) {
    ++nPreselected;
 
 
-   bool pass25 = false;
+   bool pass_selction = false;
    double ptLead = 0.0;
 
    // Boucle sur les muons retenus
@@ -101,7 +107,7 @@ bool Analyze::Process(Long64_t entry) {
 
       // Sélections cinématiques :
       if (pt > 25.0 && std::abs(eta) < 2.4) {
-         pass25 = true;
+         pass_selction = true;
          h_eta_pass->Fill(eta);
       }
 
@@ -110,13 +116,17 @@ bool Analyze::Process(Long64_t entry) {
    // Remplissage des histogrammes 
    h_ptLead_total->Fill(ptLead);
 
-   if (pass25) {
+   if (pass_selction) {
       ++nSelected; 
       h_ptLead_pass->Fill(ptLead);
 
       // Calcul de la masse invariante 
       TLorentzVector Z = muons_event[0] + muons_event[1];
       h_massZ->Fill(Z.M());
+      
+      // Remplissage des distributions cinématiques du Z
+      h_rapidityZ->Fill(Z.Rapidity());
+      h_pzZ->Fill(Z.Pz());
    }
 
    return true;
@@ -149,8 +159,7 @@ void Analyze::Terminate() {
    std::cout << "Incertitude Clopper-Pearson : [" << cp_low << ", " << cp_up << "]" << std::endl;   
 
 
-   gStyle->SetOptStat(0);
-   //gStyle->SetOptFit(1111);
+   gStyle->SetOptFit(1111);
 
    // On récupère les histogrammes
    TH1D *hTotal = (TH1D*)GetOutputList()->FindObject("h_ptLead_total");
@@ -160,7 +169,10 @@ void Analyze::Terminate() {
    TH1D *hEtaTotal = (TH1D*)GetOutputList()->FindObject("h_eta_tot");
    TH1D *hEtaPass = (TH1D*)GetOutputList()->FindObject("h_eta_pass");
 
-   if (!hTotal || !hPass || !hmassZ || !hEta || !hEtaTotal || !hEtaPass) return;
+   TH1D *hRapZ = (TH1D*)GetOutputList()->FindObject("h_rapidityZ");
+   TH1D *hPzZ = (TH1D*)GetOutputList()->FindObject("h_pzZ");
+
+   if (!hTotal || !hPass || !hmassZ || !hEta || !hEtaTotal || !hEtaPass || !hRapZ || !hPzZ ) return;
 
 
    // === TRACÉ ET FIT DE L'EFFICACITÉ EN FONCTION DE ETA ===
@@ -179,12 +191,23 @@ void Analyze::Terminate() {
    // Dessiner les axes (A) et les points avec barres d'erreur (P)
    gr_eff->Draw("AP");
 
-   
+/*
    // Choix de la fonction "pol2" (p0 + p1*x + p2*x^2) pour le fit de l'efficacité vs eta
    TF1 *fit_eff = new TF1("fit_eff", "pol2", -2.4, 2.4); 
    fit_eff->SetLineColor(kRed);
+
+   // Valeurs initiales pour aider ROOT à converger
+   fit_eff->SetParameters(0.9, 0.0, -0.1);
+*/
+
+   // Collision asymétrique : pol4 pair pour le fit de l'efficacité
+   TF1 *fit_eff = new TF1("fit_eff", "[0] + [1]*x*x + [2]*x*x*x*x", -2.4, 2.4);
+   fit_eff->SetLineColor(kRed);
+
+   // Valeurs initiales pour aider ROOT à converger
+   fit_eff->SetParameters(0.95, -0.02, -0.005);
    
-   std::cout << "\n--- Fit de l'efficacite ---" << std::endl;
+   std::cout << "\n--- Fit de l'efficacite vs eta ---" << std::endl;
   
    TFitResultPtr r_eff = gr_eff->Fit("fit_eff", "R S");  // L'option "R" limite le fit à l'intervall défini ci-dessus et l'option "S" sauvegarde les résultats pour récupérer le Chi2
 
@@ -195,7 +218,6 @@ void Analyze::Terminate() {
        std::cout << "Qualite du fit (Chi2/ndf) : " << chi2_eff/ndf_eff << std::endl;
    }
    
-
    c1->SaveAs("Eff_vs_Eta.png");
 
 
@@ -206,9 +228,6 @@ void Analyze::Terminate() {
 
    TGraphAsymmErrors *gEff = new TGraphAsymmErrors(hPass, hTotal, "cp");
    
-   gEff->Fit(fStep, "R");
-
-   
    gEff->SetTitle("Fit de l'efficacite de selection;p_{T}^{lead} [GeV];Efficacite");
    gEff->SetMarkerStyle(20);
    gEff->SetMarkerColor(kBlue+1);
@@ -217,14 +236,43 @@ void Analyze::Terminate() {
    gEff->SetMaximum(1.05);
    gEff->Draw("AP");
 
-   // Choix de la fonction "step" pour le fit de l'efficacité vs pT
-   TF1 *fStep = new TF1("fStep", "x < 25.0 ? 0.0 : [0]", 10.0, 100.0);
-   fStep->SetParName(0, "Plateau");
-   fStep->SetParameter(0, 1.0);
-   fStep->SetLineColor(kRed+1);
-   fStep->Draw("SAME");
+/* 
+   // Choix de la fonction "step" pour le fit
+   TF1 *fit_eff2 = new TF1("fit_eff2", "x < 25.0 ? 0.0 : [0]", 10.0, 100.0);
+   fit_eff2->SetParName(0, "Plateau");
+   fit_eff2->SetParameter(0, 1.0);
+   fit_eff2->SetLineColor(kRed+1);
+*/
 
-   c3->SaveAs("Eff_vs_pT.png");
+   std::cout << "\n--- Fit de l'efficacite vs pT ---" << std::endl;
+  
+   TFitResultPtr r_eff2 = gEff->Fit("fStep", "R S");  // L'option "R" limite le fit à l'intervall défini ci-dessus et l'option "S" sauvegarde les résultats pour récupérer le Chi2
+
+   // Évaluation du fit 
+   if (r_eff2 == 0) {
+       double chi2_eff2 = r_eff2->Chi2();
+       double ndf_eff2 = r_eff2->Ndf();
+       std::cout << "Qualite du fit (Chi2/ndf) : " << chi2_eff2/ndf_eff2 << std::endl;
+   }
+
+   c2->SaveAs("Eff_vs_pT.png");
+
+
+
+   // === TRACÉS DES DEUX NOUVEAUX HISTOGRAMMES DE CONTRÔLE ===
+   TCanvas *cRap = new TCanvas("cRap", "Rapidite du Z", 800, 600);
+   hRapZ->SetLineColor(kGreen+2);
+   hRapZ->SetFillColor(kGreen-9);
+   hRapZ->Draw("HIST");
+
+   cRap->SaveAs("Z_Rapidity.png");
+
+   TCanvas *cPz = new TCanvas("cPz", "Pz du Z", 800, 600);
+   hPzZ->SetLineColor(kViolet+1);
+   hPzZ->SetFillColor(kViolet-9);
+   hPzZ->Draw("HIST");
+
+   cPz->SaveAs("Z_Pz.png");
 
 
 
